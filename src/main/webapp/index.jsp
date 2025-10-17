@@ -260,7 +260,7 @@
         </header>
 
         <main class="main-content">
-            <h1 class="welcome-title">Welcome to Student Management System</h1>
+            <h1 class="welcome-title">Welcome to Student Management System Anil</h1>
             <p class="description">
                 Streamline your student data, track progress, and enhance administrative efficiency with our intuitive platform designed for educators and administrators.
             </p>
