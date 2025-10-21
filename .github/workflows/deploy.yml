@@ -113,6 +113,8 @@ jobs:
             
             echo "1. Cleaning up old deployment..."
             sudo rm -rf /var/lib/tomcat10/webapps/ROOT*
+            # Also clean work dir to avoid JSP cache issues
+            sudo rm -rf /var/lib/tomcat10/work/Catalina/localhost/ROOT*
             
             echo "2. Verifying source WAR file exists..."
             if [ ! -f "/tmp/ROOT.war" ]; then
@@ -144,6 +146,16 @@ jobs:
             else
               echo "WARNING: ROOT directory not found yet - check Tomcat logs"
             fi
-            sudo systemctl status tomcat10 --no-pager
+            
+            echo "7. Restarting Tomcat to force full reload and clear JSP caches..."
+            sudo systemctl restart tomcat10
+            sleep 10  # Brief wait for startup
+            
+            echo "8. Verifying Tomcat status post-restart:"
+            sudo systemctl status tomcat10 --no-pager -l
+            
+            # Optional: Check logs for errors
+            echo "9. Checking recent Tomcat logs for deployment issues:"
+            sudo journalctl -u tomcat10 -n 50 --no-pager
             
             echo "=== Deployment Completed Successfully ==="
