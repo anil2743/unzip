@@ -111,12 +111,16 @@ jobs:
           script: |
             echo "=== Starting Deployment ==="
             
-            echo "1. Cleaning up old deployment..."
-            sudo rm -rf /var/lib/tomcat10/webapps/ROOT*
-            # Also clean work dir to avoid JSP cache issues
-            sudo rm -rf /var/lib/tomcat10/work/Catalina/localhost/ROOT*
+            echo "1. Stopping Tomcat for clean shutdown..."
+            sudo systemctl stop tomcat10
+            sleep 5
             
-            echo "2. Verifying source WAR file exists..."
+            echo "2. Full cleanup of old deployment and caches..."
+            sudo rm -rf /var/lib/tomcat10/webapps/ROOT*
+            sudo rm -rf /var/lib/tomcat10/work/Catalina/localhost/ROOT*
+            sudo rm -rf /var/lib/tomcat10/temp/*
+            
+            echo "3. Verifying source WAR file exists..."
             if [ ! -f "/tmp/ROOT.war" ]; then
               echo "ERROR: /tmp/ROOT.war not found!"
               echo "Contents of /tmp:"
@@ -127,17 +131,18 @@ jobs:
             ls -lh /tmp/ROOT.war
             file /tmp/ROOT.war
             
-            echo "3. Copying WAR to webapps directory..."
+            echo "4. Copying WAR to webapps directory..."
             sudo cp /tmp/ROOT.war /var/lib/tomcat10/webapps/
             
-            echo "4. Setting permissions on WAR..."
+            echo "5. Setting permissions on WAR..."
             sudo chown tomcat:tomcat /var/lib/tomcat10/webapps/ROOT.war
             sudo chmod 644 /var/lib/tomcat10/webapps/ROOT.war
             
-            echo "5. Waiting for Tomcat auto-deployment..."
-            sleep 30
+            echo "6. Starting Tomcat..."
+            sudo systemctl start tomcat10
+            sleep 30  # Wait for startup and auto-deployment
             
-            echo "6. Verifying auto-deployment:"
+            echo "7. Verifying auto-deployment:"
             ls -la /var/lib/tomcat10/webapps/
             if [ -d "/var/lib/tomcat10/webapps/ROOT" ]; then
               echo "Exploded ROOT directory created successfully:"
@@ -147,15 +152,12 @@ jobs:
               echo "WARNING: ROOT directory not found yet - check Tomcat logs"
             fi
             
-            echo "7. Restarting Tomcat to force full reload and clear JSP caches..."
-            sudo systemctl restart tomcat10
-            sleep 10  # Brief wait for startup
-            
-            echo "8. Verifying Tomcat status post-restart:"
+            echo "8. Verifying Tomcat status post-start:"
             sudo systemctl status tomcat10 --no-pager -l
             
-            # Optional: Check logs for errors
-            echo "9. Checking recent Tomcat logs for deployment issues:"
-            sudo journalctl -u tomcat10 -n 50 --no-pager
+            echo "9. Checking recent Tomcat logs for deployment/JSP issues:"
+            sudo journalctl -u tomcat10 -n 100 --no-pager | grep -i "deploy\|error\|jsp\|index\|start"
+            echo "10. Tailing catalina.out for confirmation:"
+            sudo tail -n 20 /var/log/tomcat10/catalina.out
             
             echo "=== Deployment Completed Successfully ==="
